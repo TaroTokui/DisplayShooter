@@ -1,0 +1,9 @@
+<camera_settings>
+	<binary_threshold>175</binary_threshold>
+	<max_size_threshold>3000</max_size_threshold>
+	<min_size_threshold>4</min_size_threshold>
+	<target_display_w>1920</target_display_w>
+	<target_display_h>1080</target_display_h>
+<camera_settings/>
+<tracking_distance>20</tracking_distance>
+</camera_settings>
