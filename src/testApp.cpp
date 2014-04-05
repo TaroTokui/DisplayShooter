@@ -7,16 +7,18 @@ void testApp::setup(){
     // format7 mode 1
     // size = 320 x 240
     //
-    camera.setFormat7(true, 1);
-    camera.setSize(CAMERA_WIDTH,CAMERA_HEIGHT);
-    camera.setExposure(50.0);
-    camera.setFrameRate(60);
-	camera.setup();
+    for (int i=0; i<NUM_CAMERA; i++) {
+        camera[i].setFormat7(true, 1);
+        camera[i].setSize(CAMERA_WIDTH,CAMERA_HEIGHT);
+        camera[i].setExposure(50.0);
+        camera[i].setFrameRate(60);
+        camera[i].setup(i);
+    }
     
     // ネットワークの設定
 	udpConnection.Create();
-//	udpConnection.Connect("192.168.11.41",PORT);
-	udpConnection.Connect("localhost",PORT);
+	udpConnection.Connect("192.168.11.41",PORT);
+//	udpConnection.Connect("localhost",PORT);
 	udpConnection.SetNonBlocking(true);
     
     // GUI
@@ -47,50 +49,49 @@ void testApp::setup(){
 //--------------------------------------------------------------
 void testApp::update(){
     
-	if(camera.grabVideo(curFrame)) {
-		curFrame.update();
-        
-        // ofxCvGrayscaleImage型に変換
-        srcGray.setFromPixels(curFrame.getPixels(), curFrame.getWidth(), curFrame.getHeight());
-        
-        // 二値化
-        srcGray.threshold(binary_thresh);
-        
-        // マーカ検出と並び替え
-        numRegionsDetected = displayDetector.detectDisplayCorners(srcGray.getCvImage(), cornerRegions, maxSizeThreshold, minSizeThreshold);
-        
-        cout << numRegionsDetected << endl;
-#if 1
-        /* 四隅のマーカがちゃんと検出できている */
-        if ( numRegionsDetected == 4 ){
-            impactPoint = transformer.getImpactPoint(cornerRegions, aimingPoint);				// 当った位置を調べる
+    for (int i=0; i<NUM_CAMERA; i++) {
+        if(camera[i].grabVideo(curFrame[i])) {
+            curFrame[i].update();
             
-            /* 当っているか判断する */
-            if ( impactPoint.x >= 0 && impactPoint.x < targetDisplayWidth && impactPoint.y >= 0 && impactPoint.y < targetDisplayHeight ){
-                printf("hit: %03.02f %03.02f -> %03.02f %03.02f\n", aimingPoint.x, aimingPoint.y, impactPoint.x, impactPoint.y);
+            // ofxCvGrayscaleImage型に変換
+            srcGray.setFromPixels(curFrame[i].getPixels(), CAMERA_WIDTH, CAMERA_HEIGHT);
+            
+            // 二値化
+            srcGray.threshold(binary_thresh);
+            
+            // マーカ検出と並び替え
+            numRegionsDetected = displayDetector.detectDisplayCorners(srcGray.getCvImage(), cornerRegions, maxSizeThreshold, minSizeThreshold);
+            
+            cout << numRegionsDetected << endl;
+            
+            /* 四隅のマーカがちゃんと検出できている */
+            if ( numRegionsDetected == 4 ){
+                impactPoint = transformer.getImpactPoint(cornerRegions, aimingPoint);				// 当った位置を調べる
                 
-                /* 着弾位置をアプリに送信 */
-                float x = impactPoint.x / (float)targetDisplayWidth;
-                float y = impactPoint.y / (float)targetDisplayHeight;
-//                bulletCounter++;
-//                udp->sendMessage(&sendBuffer, sizeof(DISPLAYSHOOTER_NETWORK_DATA));
-                
-                cout << "x:" << x << " y:" << y << endl;
-                
-                string message="";
-                message+=ofToString(x)+"|"+ofToString(y)+"|0[/p]";
-                udpConnection.Send(message.c_str(),message.length());
-                
-            }else{
-//                string message="";
-//                message+=ofToString(0.5)+"|"+ofToString(0.5)+"|0[/p]";
-//                udpConnection.Send(message.c_str(),message.length());
-                printf("Out of Display: %03.02f %03.02f -> %03.02f %03.02f\n", aimingPoint.x, aimingPoint.y, impactPoint.x, impactPoint.y);
+                /* 当っているか判断する */
+                if ( impactPoint.x >= 0 && impactPoint.x < targetDisplayWidth && impactPoint.y >= 0 && impactPoint.y < targetDisplayHeight ){
+                    printf("hit: %03.02f %03.02f -> %03.02f %03.02f\n", aimingPoint.x, aimingPoint.y, impactPoint.x, impactPoint.y);
+                    
+                    /* 着弾位置をアプリに送信 */
+                    float x = impactPoint.x / (float)targetDisplayWidth;
+                    float y = impactPoint.y / (float)targetDisplayHeight;
+                    //                bulletCounter++;
+                    //                udp->sendMessage(&sendBuffer, sizeof(DISPLAYSHOOTER_NETWORK_DATA));
+                    
+                    cout << "x:" << x << " y:" << y << endl;
+                    
+                    string message="";
+                    message+=ofToString(x)+"|"+ofToString(y)+"|"+ofToString(i)+"[/p]";
+                    udpConnection.Send(message.c_str(),message.length());
+                    
+                }else{
+                    printf("Out of Display: %03.02f %03.02f -> %03.02f %03.02f\n", aimingPoint.x, aimingPoint.y, impactPoint.x, impactPoint.y);
+                }
             }
+            
         }
-#endif
-        
-	}
+
+    }
 }
 
 //--------------------------------------------------------------
@@ -98,26 +99,26 @@ void testApp::draw(){
     
     ofSetColor(255);
     
-	if(camera.isReady()) {
-		// Camera doesn't draw itself, curFrame does.
-		curFrame.draw(0, 0, 640, 480);
-//        srcGray.draw(curFrame.getWidth()+1, 0);
-	}
-    
-    showResult(640,480);
+    for (int i=0; i<NUM_CAMERA; i++) {
+            // Camera doesn't draw itself, curFrame does.
+            curFrame[i].draw(i*CAMERA_WIDTH, 0, CAMERA_WIDTH, CAMERA_HEIGHT);
+            //        srcGray.draw(curFrame.getWidth()+1, 0);
+            
+//            showResult(i*CAMERA_WIDTH,0,CAMERA_WIDTH,CAMERA_HEIGHT);
+    }
     
     if(showGUI) gui.draw();
 }
 
 /* 結果描画 */
-void testApp::showResult(int w, int h){
+void testApp::showResult(int x, int y, int w, int h){
     
     CvPoint2D32f tmpPoints[4];
     
 	/* マーカ描画 */
 	for (int i = 0; i < 4; i++){
-        tmpPoints[i].x = cornerRegions[i].centroid.x * w / CAMERA_WIDTH;
-        tmpPoints[i].y = cornerRegions[i].centroid.y * h / CAMERA_HEIGHT;
+        tmpPoints[i].x = cornerRegions[i].centroid.x * w / CAMERA_WIDTH + x;
+        tmpPoints[i].y = cornerRegions[i].centroid.y * h / CAMERA_HEIGHT + y;
         ofSetColor(255,0,0);
         ofNoFill();
         ofEllipse(tmpPoints[i].x, tmpPoints[i].y, 10, 10);

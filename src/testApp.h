@@ -15,6 +15,8 @@ static const int PORT = 11999;
 static const int CAMERA_WIDTH = 320;
 static const int CAMERA_HEIGHT = 240;
 
+static const int NUM_CAMERA = 2;
+
 class testApp : public ofBaseApp{
 
 	public:
@@ -32,13 +34,13 @@ class testApp : public ofBaseApp{
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
     
-    void showResult(int w, int h);
+    void showResult(int x, int y, int w, int h);
     
 	// ofxLibdc is a namespace, and Camera is the object
-	ofxLibdc::Camera camera;
+	ofxLibdc::Camera camera[NUM_CAMERA];
 	
 	// ofImage is where we store the current frame we grabbed from the Camera
-	ofImage curFrame;
+	ofImage curFrame[NUM_CAMERA];
 	
     // GUI
 	ofxPanel gui;
